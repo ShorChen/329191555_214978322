@@ -24,6 +24,12 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
 
     @Override
     public void process(String message) {
+        // kuku
+        System.out.println("-----------------------------------");
+        System.out.println("Received Frame:");
+        System.out.println(message);
+        System.out.println("-----------------------------------");
+        // kuku
         String[] lines = message.split("\n");
         if (lines.length == 0) return;
         String command = lines[0].trim();
