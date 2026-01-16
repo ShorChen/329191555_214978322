@@ -63,6 +63,32 @@ const std::string &Event::get_discription() const
 
 Event::Event(const std::string &frame_body) : team_a_name(""), team_b_name(""), name(""), time(0), game_updates(), team_a_updates(), team_b_updates(), description("")
 {
+    std::stringstream ss(frame_body);
+    std::string line;
+    std::string current_map = "";
+    while (std::getline(ss, line)) {
+        size_t colonPos = line.find(':');
+        if (colonPos == std::string::npos) {
+            if (line.find("general game updates:") != std::string::npos) current_map = "game";
+            else if (line.find("team a updates:") != std::string::npos) current_map = "team_a";
+            else if (line.find("team b updates:") != std::string::npos) current_map = "team_b";
+            continue;
+        }
+        std::string key = line.substr(0, colonPos);
+        std::string value = line.substr(colonPos + 1);
+        if (key == "team a") team_a_name = value;
+        else if (key == "team b") team_b_name = value;
+        else if (key == "event name") name = value;
+        else if (key == "time") time = std::stoi(value);
+        else if (key == "description") description = value;
+        else {
+            size_t firstChar = key.find_first_not_of(" \t");
+            if (firstChar != std::string::npos) key = key.substr(firstChar);
+            if (current_map == "game") game_updates[key] = value;
+            else if (current_map == "team_a") team_a_updates[key] = value;
+            else if (current_map == "team_b") team_b_updates[key] = value;
+        }
+    }
 }
 
 names_and_events parseEventsFile(std::string json_path)

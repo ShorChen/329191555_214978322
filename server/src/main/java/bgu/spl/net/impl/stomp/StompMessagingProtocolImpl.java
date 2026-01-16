@@ -1,6 +1,8 @@
 package bgu.spl.net.impl.stomp;
 
 import bgu.spl.net.api.StompMessagingProtocol;
+import bgu.spl.net.impl.data.Database;
+import bgu.spl.net.impl.data.LoginStatus;
 import bgu.spl.net.srv.Connections;
 import bgu.spl.net.srv.ConnectionsImpl;
 import java.util.Map;
@@ -13,8 +15,6 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
     private boolean isConnected = false;
     private String login = null;
     private Map<String, String> subscriptionIdToTopic = new ConcurrentHashMap<>();
-    private static final Map<String, String> users = new ConcurrentHashMap<>();
-    private static final Map<String, Boolean> activeUsers = new ConcurrentHashMap<>();
 
     @Override
     public void start(int connectionId, Connections<String> connections) {
@@ -24,12 +24,10 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
 
     @Override
     public void process(String message) {
-        // kuku
         System.out.println("-----------------------------------");
         System.out.println("Received Frame:");
         System.out.println(message);
         System.out.println("-----------------------------------");
-        // kuku
         String[] lines = message.split("\n");
         if (lines.length == 0) return;
         String command = lines[0].trim();
@@ -70,28 +68,26 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
             sendError("Already connected", "Client is already logged in.");
             return;
         }
-        synchronized (users) {
-            if (!users.containsKey(loginUser))
-                users.put(loginUser, passcode);
-            else if (!users.get(loginUser).equals(passcode)) {
-                    sendError("Wrong password", "Password does not match.");
-                    shouldTerminate = true;
-                    connections.disconnect(connectionId);
-                    return;
-                }
-            if (activeUsers.getOrDefault(loginUser, false)) {
-                sendError("User already logged in", "User " + loginUser + " is already active.");
-                shouldTerminate = true;
-                connections.disconnect(connectionId);
-                return;
-            }
-            activeUsers.put(loginUser, true);
-        }
+        LoginStatus status = Database.getInstance().login(connectionId, loginUser, passcode);
+        if (status == LoginStatus.WRONG_PASSWORD) {
+            sendError("Wrong password", "Password does not match.");
+            shouldTerminate = true;
+            connections.disconnect(connectionId);
+            return;
+        } else if (status == LoginStatus.ALREADY_LOGGED_IN) {
+            sendError("User already logged in", "User " + loginUser + " is already active.");
+            shouldTerminate = true;
+            connections.disconnect(connectionId);
+            return;
+        } else if (status == LoginStatus.CLIENT_ALREADY_CONNECTED) {
+            sendError("Client already connected", "Connection is already active.");
+            return;
+        }        
         isConnected = true;
         login = loginUser;
         String response = "CONNECTED\n" +
                           "version:1.2\n" +
-                          "\n";
+                          "\n"; 
         connections.send(connectionId, response);
     }
 
@@ -128,8 +124,8 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
         if (!isConnected || dest == null) {
             sendError("Malformed Frame", "Missing destination for SEND");
             return;
-        }
-        String msgId = String.valueOf(System.currentTimeMillis());
+        }        
+        String msgId = String.valueOf(System.currentTimeMillis()); 
         String responseFrame = "MESSAGE\n" +
                                "destination:" + dest + "\n" +
                                "message-id:" + msgId + "\n" +
@@ -144,7 +140,7 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
         if (receipt != null)
             sendReceipt(receipt);
         if (login != null)
-            activeUsers.put(login, false);
+            Database.getInstance().logout(connectionId);
         shouldTerminate = true;
         isConnected = false;
         connections.disconnect(connectionId);
@@ -171,7 +167,7 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
         Map<String, String> headers = new ConcurrentHashMap<>();
         for (int i = 1; i < lines.length; i++) {
             String line = lines[i].trim();
-            if (line.isEmpty()) break;
+            if (line.isEmpty()) break; 
             String[] parts = line.split(":", 2);
             if (parts.length == 2)
                 headers.put(parts[0], parts[1]);

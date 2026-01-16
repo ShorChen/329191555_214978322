@@ -19,8 +19,10 @@ void readSocketTask(ConnectionHandler* connectionHandler) {
     while (isConnected) {
         std::string answer;
         if (!connectionHandler->getFrameAscii(answer, '\0')) {
-            std::cout << "Disconnected from server." << std::endl;
-            isConnected = false;
+            if (isConnected) {
+                std::cout << "Disconnected from server." << std::endl;
+                isConnected = false;
+            }
             break;
         }
         if (answer.find("CONNECTED") == 0)
