@@ -1,10 +1,10 @@
 #pragma once
 
+#include <string>
+#include <vector>
 #include "../include/ConnectionHandler.h"
 
-// TODO: implement the STOMP protocol
-class StompProtocol
-{
-private:
+class StompProtocol {
 public:
+    static std::string commandToFrame(const std::string& commandLine);
 };

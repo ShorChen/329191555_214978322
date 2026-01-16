@@ -1,7 +1,6 @@
 #include "../include/ConnectionHandler.h"
 
 using boost::asio::ip::tcp;
-
 using std::cin;
 using std::cout;
 using std::cerr;
@@ -36,9 +35,8 @@ bool ConnectionHandler::getBytes(char bytes[], unsigned int bytesToRead) {
 	size_t tmp = 0;
 	boost::system::error_code error;
 	try {
-		while (!error && bytesToRead > tmp) {
+		while (!error && bytesToRead > tmp)
 			tmp += socket_.read_some(boost::asio::buffer(bytes + tmp, bytesToRead - tmp), error);
-		}
 		if (error)
 			throw boost::system::system_error(error);
 	} catch (std::exception &e) {
@@ -52,9 +50,8 @@ bool ConnectionHandler::sendBytes(const char bytes[], int bytesToWrite) {
 	int tmp = 0;
 	boost::system::error_code error;
 	try {
-		while (!error && bytesToWrite > tmp) {
+		while (!error && bytesToWrite > tmp)
 			tmp += socket_.write_some(boost::asio::buffer(bytes + tmp, bytesToWrite - tmp), error);
-		}
 		if (error)
 			throw boost::system::system_error(error);
 	} catch (std::exception &e) {
@@ -75,13 +72,10 @@ bool ConnectionHandler::sendLine(std::string &line) {
 
 bool ConnectionHandler::getFrameAscii(std::string &frame, char delimiter) {
 	char ch;
-	// Stop when we encounter the null character.
-	// Notice that the null character is not appended to the frame string.
 	try {
 		do {
-			if (!getBytes(&ch, 1)) {
+			if (!getBytes(&ch, 1))
 				return false;
-			}
 			if (ch != '\0')
 				frame.append(1, ch);
 		} while (delimiter != ch);
@@ -98,7 +92,6 @@ bool ConnectionHandler::sendFrameAscii(const std::string &frame, char delimiter)
 	return sendBytes(&delimiter, 1);
 }
 
-// Close down the connection properly.
 void ConnectionHandler::close() {
 	try {
 		socket_.close();
