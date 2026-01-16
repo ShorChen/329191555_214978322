@@ -12,7 +12,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class ActorThreadPool {
-
     private final Map<Object, Queue<Runnable>> acts;
     private final ReadWriteLock actsRWLock;
     private final Set<Object> playingNow;
@@ -30,9 +29,7 @@ public class ActorThreadPool {
             if (!playingNow.contains(act)) {
                 playingNow.add(act);
                 execute(r, act);
-            } else {
-                pendingRunnablesOf(act).add(r);
-            }
+            } else pendingRunnablesOf(act).add(r);
         }
     }
 
@@ -41,11 +38,9 @@ public class ActorThreadPool {
     }
 
     private Queue<Runnable> pendingRunnablesOf(Object act) {
-
         actsRWLock.readLock().lock();
         Queue<Runnable> pendingRunnables = acts.get(act);
         actsRWLock.readLock().unlock();
-
         if (pendingRunnables == null) {
             actsRWLock.writeLock().lock();
             acts.put(act, pendingRunnables = new LinkedList<>());
@@ -67,12 +62,9 @@ public class ActorThreadPool {
     private void complete(Object act) {
         synchronized (act) {
             Queue<Runnable> pending = pendingRunnablesOf(act);
-            if (pending.isEmpty()) {
+            if (pending.isEmpty())
                 playingNow.remove(act);
-            } else {
-                execute(pending.poll(), act);
-            }
+            else execute(pending.poll(), act);
         }
     }
-
 }

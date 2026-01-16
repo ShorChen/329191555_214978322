@@ -15,5 +15,4 @@ public class FetchNewsCommand implements Command<NewsFeed> {
     public Serializable execute(NewsFeed feed) {
         return feed.fetch(channel);
     }
-
 }

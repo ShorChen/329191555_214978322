@@ -1,7 +1,7 @@
 package bgu.spl.net.srv;
 
 import bgu.spl.net.api.MessageEncoderDecoder;
-import bgu.spl.net.api.MessagingProtocol;
+import bgu.spl.net.api.StompMessagingProtocol;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.channels.ClosedSelectorException;
@@ -13,121 +13,102 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Supplier;
 
 public class Reactor<T> implements Server<T> {
-
     private final int port;
-    private final Supplier<MessagingProtocol<T>> protocolFactory;
+    private final Supplier<StompMessagingProtocol<T>> protocolFactory;
     private final Supplier<MessageEncoderDecoder<T>> readerFactory;
     private final ActorThreadPool pool;
     private Selector selector;
-
     private Thread selectorThread;
     private final ConcurrentLinkedQueue<Runnable> selectorTasks = new ConcurrentLinkedQueue<>();
+    private final ConnectionsImpl<T> connections;
 
     public Reactor(
             int numThreads,
             int port,
-            Supplier<MessagingProtocol<T>> protocolFactory,
+            Supplier<StompMessagingProtocol<T>> protocolFactory,
             Supplier<MessageEncoderDecoder<T>> readerFactory) {
-
-        this.pool = new ActorThreadPool(numThreads);
+        pool = new ActorThreadPool(numThreads);
         this.port = port;
         this.protocolFactory = protocolFactory;
         this.readerFactory = readerFactory;
+        connections = new ConnectionsImpl<>();
     }
 
     @Override
     public void serve() {
-	selectorThread = Thread.currentThread();
+        selectorThread = Thread.currentThread();
         try (Selector selector = Selector.open();
-                ServerSocketChannel serverSock = ServerSocketChannel.open()) {
-
-            this.selector = selector; //just to be able to close
-
+             ServerSocketChannel serverSock = ServerSocketChannel.open()) {
+            this.selector = selector;
             serverSock.bind(new InetSocketAddress(port));
             serverSock.configureBlocking(false);
             serverSock.register(selector, SelectionKey.OP_ACCEPT);
-			System.out.println("Server started");
-
+            System.out.println("Server started");
             while (!Thread.currentThread().isInterrupted()) {
-
                 selector.select();
                 runSelectionThreadTasks();
-
-                for (SelectionKey key : selector.selectedKeys()) {
-
-                    if (!key.isValid()) {
+                for (SelectionKey key : selector.selectedKeys())
+                    if (!key.isValid())
                         continue;
-                    } else if (key.isAcceptable()) {
+                    else if (key.isAcceptable())
                         handleAccept(serverSock, selector);
-                    } else {
-                        handleReadWrite(key);
-                    }
-                }
-
-                selector.selectedKeys().clear(); //clear the selected keys set so that we can know about new events
-
+                    else handleReadWrite(key);
+                selector.selectedKeys().clear();
             }
-
         } catch (ClosedSelectorException ex) {
-            //do nothing - server was requested to be closed
         } catch (IOException ex) {
-            //this is an error
             ex.printStackTrace();
         }
-
         System.out.println("server closed!!!");
         pool.shutdown();
     }
 
     /*package*/ void updateInterestedOps(SocketChannel chan, int ops) {
         final SelectionKey key = chan.keyFor(selector);
-        if (Thread.currentThread() == selectorThread) {
+        if (Thread.currentThread() == selectorThread)
             key.interestOps(ops);
-        } else {
+        else {
             selectorTasks.add(() -> {
-                key.interestOps(ops);
+                if (key.isValid())
+                    key.interestOps(ops);
             });
             selector.wakeup();
         }
     }
 
-
     private void handleAccept(ServerSocketChannel serverChan, Selector selector) throws IOException {
         SocketChannel clientChan = serverChan.accept();
         clientChan.configureBlocking(false);
+        StompMessagingProtocol<T> protocol = protocolFactory.get();
         final NonBlockingConnectionHandler<T> handler = new NonBlockingConnectionHandler<>(
                 readerFactory.get(),
-                protocolFactory.get(),
+                protocol,
                 clientChan,
                 this);
+        int connectionId = connections.addActiveConnection(handler);
+        protocol.start(connectionId, connections);
         clientChan.register(selector, SelectionKey.OP_READ, handler);
     }
 
     private void handleReadWrite(SelectionKey key) {
         @SuppressWarnings("unchecked")
         NonBlockingConnectionHandler<T> handler = (NonBlockingConnectionHandler<T>) key.attachment();
-
         if (key.isReadable()) {
             Runnable task = handler.continueRead();
-            if (task != null) {
+            if (task != null)
                 pool.submit(handler, task);
-            }
         }
-
-	    if (key.isValid() && key.isWritable()) {
+        if (key.isValid() && key.isWritable())
             handler.continueWrite();
-        }
     }
 
     private void runSelectionThreadTasks() {
-        while (!selectorTasks.isEmpty()) {
-            selectorTasks.remove().run();
-        }
+        while (!selectorTasks.isEmpty())
+            selectorTasks.poll().run();
     }
 
     @Override
     public void close() throws IOException {
         selector.close();
     }
-
 }

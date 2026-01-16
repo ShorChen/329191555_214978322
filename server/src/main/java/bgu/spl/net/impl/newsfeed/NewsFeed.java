@@ -10,11 +10,9 @@ public class NewsFeed {
 
     public ArrayList<String> fetch(String channel) {
         ConcurrentLinkedQueue<String> queue = channels.get(channel);
-        if (queue == null) {
-            return new ArrayList<>(0); //empty
-        } else {
-            return new ArrayList<>(queue); //copy of the queue, arraylist is serializable
-        }
+        if (queue == null)
+            return new ArrayList<>(0);
+        else return new ArrayList<>(queue);
     }
 
     public void publish(String channel, String news) {

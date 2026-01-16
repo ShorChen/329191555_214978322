@@ -11,16 +11,15 @@ import java.io.Serializable;
 import java.nio.ByteBuffer;
 
 public class ObjectEncoderDecoder implements MessageEncoderDecoder<Serializable> {
-
     private final ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
     private byte[] objectBytes = null;
     private int objectBytesIndex = 0;
 
     @Override
     public Serializable decodeNextByte(byte nextByte) {
-        if (objectBytes == null) { //indicates that we are still reading the length
+        if (objectBytes == null) {
             lengthBuffer.put(nextByte);
-            if (!lengthBuffer.hasRemaining()) { //we read 4 bytes and therefore can take the length
+            if (!lengthBuffer.hasRemaining()) {
                 lengthBuffer.flip();
                 objectBytes = new byte[lengthBuffer.getInt()];
                 objectBytesIndex = 0;
@@ -34,7 +33,6 @@ public class ObjectEncoderDecoder implements MessageEncoderDecoder<Serializable>
                 return result;
             }
         }
-
         return null;
     }
 
@@ -50,30 +48,21 @@ public class ObjectEncoderDecoder implements MessageEncoderDecoder<Serializable>
         } catch (Exception ex) {
             throw new IllegalArgumentException("cannot desrialize object", ex);
         }
-
     }
 
     private byte[] serializeObject(Serializable message) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-
-            //placeholder for the object size
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < 4; i++)
                 bytes.write(0);
-            }
-
             ObjectOutput out = new ObjectOutputStream(bytes);
             out.writeObject(message);
             out.flush();
             byte[] result = bytes.toByteArray();
-
-            //now write the object size
             ByteBuffer.wrap(result).putInt(result.length - 4);
             return result;
-
         } catch (Exception ex) {
             throw new IllegalArgumentException("cannot serialize object", ex);
         }
     }
-
 }
