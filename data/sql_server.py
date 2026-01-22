@@ -1,3 +1,4 @@
+from email.mime import message
 import socket
 import sqlite3
 import sys
@@ -85,9 +86,14 @@ def handle_client(client_socket: socket.socket, addr):
             message = recv_null_terminated(client_socket)
             if message == "":
                 break
-            print(f"[{SERVER_NAME}] Received:")
-            print(message)
-            client_socket.sendall(b"done\0")
+            print(f"[{SERVER_NAME}] executing: {message}")
+            sql = message.strip()
+            response = ""
+            if sql.upper().startswith("SELECT"):
+                response = execute_sql_query(sql)
+            else:
+                response = execute_sql_command(sql)
+            client_socket.sendall((response + "\0").encode("utf-8"))
     except Exception as e:
         print(f"[{SERVER_NAME}] Error handling client {addr}: {e}")
     finally:
@@ -124,6 +130,7 @@ def start_server(host="127.0.0.1", port=7778):
 
 
 if __name__ == "__main__":
+    init_database()
     port = 7778
     if len(sys.argv) > 1:
         raw_port = sys.argv[1].strip()

@@ -19,8 +19,8 @@ public class RemoteCommandInvocationProtocol<T> implements StompMessagingProtoco
         this.connections = connections;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
+    @SuppressWarnings("unchecked")
     public void process(Serializable msg) {
         Serializable result = ((Command<T>) msg).execute(arg);
         if (result != null)

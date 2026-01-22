@@ -99,7 +99,7 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
             sendError("Malformed Frame", "Missing headers for SUBSCRIBE");
             return;
         }
-        connections.subscribe(dest, connectionId);
+        connections.subscribe(dest, connectionId, subId);
         subscriptionIdToTopic.put(subId, dest);
         if (receipt != null)
             sendReceipt(receipt);
@@ -121,18 +121,24 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
 
     private void handleSend(Map<String, String> headers, String body) {
         String dest = headers.get("destination");
+        String receipt = headers.get("receipt");
+        String filename = headers.get("file");
         if (!isConnected || dest == null) {
             sendError("Malformed Frame", "Missing destination for SEND");
             return;
-        }        
+        }
+        if (filename != null && login != null)
+            Database.getInstance().trackFileUpload(login, filename, dest);
         String msgId = String.valueOf(System.currentTimeMillis()); 
         String responseFrame = "MESSAGE\n" +
                                "destination:" + dest + "\n" +
                                "message-id:" + msgId + "\n" +
-                               "subscription:0\n" +
+                               "subscription:{subscription-id-placeholder}\n" +
                                "\n" +
                                body;
         connections.send(dest, responseFrame);
+        if (receipt != null)
+            sendReceipt(receipt);
     }
 
     private void handleDisconnect(Map<String, String> headers) {

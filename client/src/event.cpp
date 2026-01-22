@@ -67,15 +67,29 @@ Event::Event(const std::string &frame_body) : team_a_name(""), team_b_name(""), 
     std::string line;
     std::string current_map = "";
     while (std::getline(ss, line)) {
-        size_t colonPos = line.find(':');
-        if (colonPos == std::string::npos) {
-            if (line.find("general game updates:") != std::string::npos) current_map = "game";
-            else if (line.find("team a updates:") != std::string::npos) current_map = "team_a";
-            else if (line.find("team b updates:") != std::string::npos) current_map = "team_b";
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.empty()) continue;
+        if (line == "general game updates:") {
+            current_map = "game";
             continue;
         }
+        if (line == "team a updates:") {
+            current_map = "team_a";
+            continue;
+        }
+        if (line == "team b updates:") {
+            current_map = "team_b";
+            continue;
+        }
+        size_t colonPos = line.find(':');
+        if (colonPos == std::string::npos)
+            continue;
         std::string key = line.substr(0, colonPos);
         std::string value = line.substr(colonPos + 1);
+        if (key == "user") {
+            game_updates["user"] = value;
+            continue;
+        }
         if (key == "team a") team_a_name = value;
         else if (key == "team b") team_b_name = value;
         else if (key == "event name") name = value;
