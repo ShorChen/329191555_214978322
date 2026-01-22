@@ -60,7 +60,9 @@ public class StompMessagingProtocolImpl implements StompMessagingProtocol<String
     }
 
     private void handleConnect(Map<String, String> headers) {
+        @SuppressWarnings("unused")
         String version = headers.get("accept-version");
+        @SuppressWarnings("unused")
         String host = headers.get("host");
         String loginUser = headers.get("login");
         String passcode = headers.get("passcode");

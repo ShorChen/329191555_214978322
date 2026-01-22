@@ -11,7 +11,6 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
     private final StompMessagingProtocol<T> protocol;
     private final MessageEncoderDecoder<T> encdec;
     private final Socket sock;
-    private BufferedInputStream in;
     private BufferedOutputStream out;
     private volatile boolean connected = true;
 
@@ -25,7 +24,6 @@ public class BlockingConnectionHandler<T> implements Runnable, ConnectionHandler
     public void run() {
         try (BufferedInputStream in = new BufferedInputStream(sock.getInputStream());
              BufferedOutputStream out = new BufferedOutputStream(sock.getOutputStream())) {
-            this.in = in;
             this.out = out;
             int read;
             while (!protocol.shouldTerminate() && connected && (read = in.read()) >= 0) {

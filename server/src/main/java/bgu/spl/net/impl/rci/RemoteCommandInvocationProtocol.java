@@ -20,8 +20,8 @@ public class RemoteCommandInvocationProtocol<T> implements StompMessagingProtoco
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void process(Serializable msg) {
+        @SuppressWarnings("unchecked")
         Serializable result = ((Command<T>) msg).execute(arg);
         if (result != null)
             connections.send(connectionId, result);
